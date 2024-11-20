@@ -144,9 +144,9 @@ void writeToFlash()
     prefs.putUShort("ConnMode", conn_mode);
     prefs.putUShort("volume", audioVolume);
     prefs.putUShort("station", currentStation);
-    Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n);
+    Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     Serial.printf("To flash: mode: %d, volume: %d, station: %d\n", conn_mode, audioVolume, currentStation);
-    Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n);
+    Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
 //Callback for the Bluetooth mode, when data is received, Workaround to see if music is streaming or idle
