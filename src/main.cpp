@@ -310,7 +310,7 @@ void loop(){
   byte btn;
   // 0 = not pushed, 1 = pushed, 2 = long pushed
 
-  //button only in wifi mode
+  //button only in wifi mode fdse
   btn = rotary.pushType(1000); // number of milliseconds button has to be pushed for it to be considered a long push.
   if ( btn == 1) 
   {
