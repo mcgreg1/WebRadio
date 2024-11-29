@@ -12,10 +12,11 @@
 #include <Adafruit_SSD1306.h>
 
 #define SHUTDOWN_TIME 10 //deepsleep after 10 min. 
-#define WIFI_TIMEOUT_MS 20000 // So lange wird versucht, neu mit Wifi zu verbinden, wenn die Verbindung mal verloren geht (in keepWiFiAlive())
+#define WIFI_TIMEOUT_MS 20000 //try wifi for x miliseconds before give up
 #define MAX_AUDIO_VOLUME 40 //pay attention to the maxvolumesteps and Bluetooth scaling factor
 // Digital I/O used
 
+//Audio Amplifier PINS
 #define I2S_DOUT      14
 #define I2S_BCLK      27
 #define I2S_LRC       26
@@ -28,9 +29,11 @@ Adafruit_SSD1306 display(128, 32, &Wire, -1);
 Audio audio;
 
 //TODO: credentials via Webserver
-String ssid =     "Pandora2";
-String password = "LetMeIn#123";
+String ssid =     "XXX";//<-- Add your credentials here
+String password = "XXX";//<-- Add your credentials here
 
+
+//Pinout for the Rotary Encoder
 SimpleRotary rotary(18,19,15);
 
 //structure for station list
@@ -91,7 +94,7 @@ void keepWiFiAlive(void * parameters) {
     }
   }
 }
-
+//OLED Main Menu - adjusted for 128x32 pixel display
 void drawMainMenu()
 {
   {
@@ -118,7 +121,7 @@ void drawMainMenu()
     display.display();
   }
 }
-
+//draw OLED progressbar for volume visualisation
 void drawProgressbar(int x,int y, int width,int height, int progress)
 {
   Serial.printf("Progress: %d %%\n", progress);
@@ -155,7 +158,7 @@ void data_received_callback() {
   if (audioVolume>0)
       dataPacketReceivedTime=millis();
 }
-
+//Check every minute if we are in idle mode, and go to deepsleep 
 void minuteCheck()
 {
    Serial.printf("Minute check, uptime %d minutes\n", (millis()/60000));
@@ -219,7 +222,7 @@ void setup()
     Serial.println("connected!");
     display.println("connected!");
 
-      // WiFi-Verbindung aufrechterhalten
+      // Keep Wifi alive
     xTaskCreatePinnedToCore
     (
       keepWiFiAlive,
