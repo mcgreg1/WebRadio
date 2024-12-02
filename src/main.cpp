@@ -21,20 +21,23 @@
 #define I2S_BCLK      27
 #define I2S_LRC       26
 
+//Rotary Encoder PINS
+SimpleRotary rotary(18,19,15);
+
+//OLED PINS: default SDA (21), SCL(22) 
+Adafruit_SSD1306 display(128, 32, &Wire, -1);
+
+
 
 BluetoothA2DPSink a2dp_sink;
 //WebServer server(80); // TODO: Webserver
 Preferences prefs; 
-Adafruit_SSD1306 display(128, 32, &Wire, -1);
 Audio audio;
 
 //TODO: credentials via Webserver
 String ssid =     "XXX";//<-- Add your credentials here
 String password = "XXX";//<-- Add your credentials here
 
-
-//Pinout for the Rotary Encoder
-SimpleRotary rotary(18,19,15);
 
 //structure for station list
 typedef struct {
@@ -247,11 +250,11 @@ void setup()
 
     a2dp_sink.set_pin_config(my_pin_config);
     a2dp_sink.set_on_data_received(data_received_callback);
-    a2dp_sink.start("KuechenRadio");
+    a2dp_sink.start("KG_Radio");
     display.setTextSize(2);   
     if (conn_mode==0)
     {
-      display.println("Webradio");
+      display.println("KG_Radio");
     }
     if (conn_mode==1)
     {
