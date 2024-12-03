@@ -9,7 +9,8 @@
   5. Save preferences (Bluetooth or Wifi, Volume, Radiostation)
 
 TODO: 
-
-1. Webserver with it's beauty: Add remove stream URLs, etc. 
-2. Wifi Credentials via WPS
+1. Wifi credentials are hardcoded
+2. Webserver with it's beauty: Add remove stream URLs, etc. 
+3. Wifi Credentials via WPS
+4. Add menu on lcd 
    
