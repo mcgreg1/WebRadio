@@ -20,5 +20,5 @@
   1. Wifi credentials are hardcoded
   2. Webserver with it's beauty: Add remove stream URLs, etc. 
   3. Wifi Credentials via WPS
-  4. Add menu on lcd 
+  4. Add menu on lcd (e.g. conn_mode 2)
    
