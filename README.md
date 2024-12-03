@@ -1,4 +1,4 @@
-# Simple Webradio with Bluetooth
+# Simple webradio with bluetooth
 
 ![image](https://github.com/user-attachments/assets/48263a5e-00ec-4a49-b2bf-0f535401e218)
 ![Bildschirmfoto vom 2024-12-03 10-18-46](https://github.com/user-attachments/assets/12c998a2-23ef-4c59-8eae-7b665a20369e)
@@ -7,7 +7,7 @@
 
   
   
-  ## Hardware: Rotary Encoder with Button, Audio Amplifier (max98357a), ESP32 and Speaker (4 or 8 Watt)
+  ## Hardware: rotary encoder with button, audio amplifier (max98357a), ESP32 and speaker (4 or 8 Watt, e.g. Visaton FR7)
 
   ## What is working:
   1. Wifi for Webradio (Hardcoded Stream URLs)
