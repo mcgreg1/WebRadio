@@ -22,7 +22,7 @@
 #define I2S_LRC       26
 
 //Rotary Encoder PINS
-SimpleRotary rotary(18,19,15);
+SimpleRotary rotary(19,18,5);
 
 //OLED PINS: default SDA (21), SCL(22) 
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
@@ -121,6 +121,8 @@ void drawMainMenu()
       display.println("Bluetooth");
       display.println("  mode");
     }
+    //TODO: if volume==0, blink message shutdown in 3-2-1 --> deepsleep.. but can be interrupted when volume>0
+
     display.display();
   }
 }
@@ -194,7 +196,12 @@ void minuteCheck()
 
 void setup() 
 {
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_15, 0); //Rotary Button as wakeup 
+  //Use D15 as Ground pin for the display
+  pinMode(15, OUTPUT);
+  digitalWrite(15, LOW);
+
+  //Rotary Button as wakeup 
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_15, 0); 
   Serial.begin(9600);
 
   //load preferences
@@ -205,6 +212,7 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
+  display.setRotation(2);
   display.clearDisplay();
   display.setTextSize(1);             // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE);        // Draw white text
@@ -220,7 +228,22 @@ void setup()
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid.c_str(), password.c_str());
     Serial.println("connecting..");
-    while (WiFi.status() != WL_CONNECTED) delay(1500);
+    unsigned int wifiStartTime=millis();
+    while (WiFi.status() != WL_CONNECTED) 
+    {
+      delay(1500);
+      unsigned int duration= millis()-wifiStartTime;
+      if (duration>WIFI_TIMEOUT_MS)
+      {
+        Serial.printf("Could not establisch Wifi Connection for %d seconds, going to bluetooth mode", duration/1000);
+        //to to Bluetooth mode
+        conn_mode=1;
+        writeToFlash();
+        ESP.restart();
+        break;
+      }
+      
+    }
     display.clearDisplay();
     Serial.println("connected!");
     display.println("connected!");
@@ -308,7 +331,8 @@ void loop()
 
   if ( btn == 2 ) 
   {
-    Serial.println("Long Pushed");
+    int pushTime= rotary.pushTime();
+    Serial.printf("Long Pushed for %d ms", pushTime);
     if (conn_mode==0)
       conn_mode=1;
     else 
@@ -344,7 +368,7 @@ void loop()
       a2dp_sink.set_volume(audioVolume*2.5); //bluetooth scaling factor
       //void drawProgressbar(int x,int y, int width,int height, int progress)
       // (colour == Red)? return red : return !red;
-      int progress = audioVolume*2.5;
+      int progress = audioVolume*2.5; //convert to %
 
       display.clearDisplay();
       drawProgressbar(0, 0, 120, 15 ,progress);
