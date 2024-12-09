@@ -11,19 +11,21 @@
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
 
-#define SHUTDOWN_TIME 10 //deepsleep after 10 min. 
+#define SHUTDOWN_TIME 5 //deepsleep after 10 min. 
 #define WIFI_TIMEOUT_MS 20000 //try wifi for x miliseconds before give up
-#define MAX_AUDIO_VOLUME 40 //pay attention to the maxvolumesteps and Bluetooth scaling factor
+#define MAX_AUDIO_VOLUME 40 //pay attention to the maxvolumesteps and Bluetooth scaling factor when changing this!
 // Digital I/O used
 
 //Audio Amplifier PINS
 #define I2S_DOUT      14
 #define I2S_BCLK      27
 #define I2S_LRC       26
+#define ROT_DT        19
+#define ROT_CLK       18
+#define ROT_SW        15
 
 //Rotary Encoder PINS
-SimpleRotary rotary(19,18,5);
-
+SimpleRotary rotary(ROT_CLK, ROT_DT, ROT_SW);
 //OLED PINS: default SDA (21), SCL(22) 
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
 
@@ -35,14 +37,14 @@ Preferences prefs;
 Audio audio;
 
 //TODO: credentials via Webserver
-String ssid =     "XXX";//<-- Add your credentials here
-String password = "XXX";//<-- Add your credentials here
+String ssid =     "xxx";//<-- Add your credentials here
+String password = "xxx";//<-- Add your credentials here
 
 
 //structure for station list
 typedef struct {
   String url;  //stream url
-  String name; //stations name
+  String name; //station name
 } Station;
 
 #define STATIONS 4
@@ -100,6 +102,7 @@ void keepWiFiAlive(void * parameters) {
 //OLED Main Menu - adjusted for 128x32 pixel display
 void drawMainMenu()
 {
+  Serial.println("DrawMainMenu");
   {
     display.clearDisplay();
     display.setCursor(0,0);             // Start at top-left corner
@@ -121,8 +124,7 @@ void drawMainMenu()
       display.println("Bluetooth");
       display.println("  mode");
     }
-    //TODO: if volume==0, blink message shutdown in 3-2-1 --> deepsleep.. but can be interrupted when volume>0
-
+      
     display.display();
   }
 }
@@ -139,21 +141,23 @@ void drawProgressbar(int x,int y, int width,int height, int progress)
 
 void readFromFlash()
 {
+    String mode[] = {"WiFi", "Bluetooth"};
     conn_mode= prefs.getUShort("ConnMode", 0);
     audioVolume= prefs.getUShort("volume", audioVolume);
     currentStation= prefs.getUShort("station", 0);
     Serial.printf("-----------------------------------------------------\n");
-    Serial.printf("From flash: mode: %d, volume: %d, station: %d\n", conn_mode, audioVolume, currentStation);
+    Serial.printf("From flash: mode: %s, volume: %d/%d, station: %s\n", mode[conn_mode], audioVolume, MAX_AUDIO_VOLUME, stationlist[currentStation].name);
     Serial.printf("-----------------------------------------------------\n");
 }
 
 void writeToFlash()
 {
+    String mode[] = {"WiFi", "Bluetooth"};
     prefs.putUShort("ConnMode", conn_mode);
     prefs.putUShort("volume", audioVolume);
     prefs.putUShort("station", currentStation);
     Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-    Serial.printf("To flash: mode: %d, volume: %d, station: %d\n", conn_mode, audioVolume, currentStation);
+    Serial.printf("To flash: mode: %s, volume: %d/%d, station: %s\n", mode[conn_mode], audioVolume, MAX_AUDIO_VOLUME, stationlist[currentStation].name);
     Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
@@ -161,33 +165,40 @@ void writeToFlash()
 void data_received_callback() {
   //Serial.println("Data packet received");
   if (audioVolume>0)
+  {
       dataPacketReceivedTime=millis();
+      //drawMainMenu();
+  }
 }
 //Check every minute if we are in idle mode, and go to deepsleep 
 void minuteCheck()
 {
-   Serial.printf("Minute check, uptime %d minutes\n", (millis()/60000));
-
   int inactiveMinutes = (millis()-dataPacketReceivedTime)/60000;
+  Serial.printf("Minute check, uptime %d minutes, idle % minutes\n", (millis()/60000), inactiveMinutes);
+
   if (inactiveMinutes)
   {
-    Serial.printf("Inactive for %d minutes, shutdown in %d min. \n", inactiveMinutes, SHUTDOWN_TIME-inactiveMinutes);
-    display.clearDisplay();
-    display.setTextSize(2);
-    display.setCursor(0,0);
-    display.println("Shutdown in");
-    display.printf("%d minutes", SHUTDOWN_TIME-inactiveMinutes);
-    display.display();
+    if (SHUTDOWN_TIME-inactiveMinutes < 3)
+    {
+      Serial.printf("Inactive for %d minutes, shutdown in %d min. \n", inactiveMinutes, SHUTDOWN_TIME-inactiveMinutes);
+      display.clearDisplay();
+      delay(500);
+      display.setTextSize(2);
+      display.setCursor(0,0);
+      display.println("Shutdown");
+      display.printf("in %d min.", SHUTDOWN_TIME-inactiveMinutes);
+      display.display();
+    }
   }
   if (inactiveMinutes>=SHUTDOWN_TIME)
   {
     Serial.println("Going to deepsleep");
     conn_mode=0; //start always in webradio 
-    writeToFlash();
+    //writeToFlash(); no need to write, all data has been saved on change already
     prefs.end();
     display.clearDisplay();
     display.display();
-    delay(300);
+    delay(500);
     Serial.flush();
     esp_deep_sleep_start();
   }
@@ -196,17 +207,24 @@ void minuteCheck()
 
 void setup() 
 {
-  //Use D15 as Ground pin for the display
-  pinMode(15, OUTPUT);
-  digitalWrite(15, LOW);
-
   //Rotary Button as wakeup 
+ //pinMode(GPIO_NUM_15, INPUT_PULLUP);  // Declaring the pin with the push button as INPUT_PULLUP
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_15, 0); 
+
+  //Use the PINs below as additional ground and 3.3V for the display
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+
+  pinMode(2, OUTPUT);
+  digitalWrite(2, HIGH);
+
   Serial.begin(9600);
 
   //load preferences
   prefs.begin("webradio");
   readFromFlash();
+  //if (audioVolume<5)
+  //  audioVolume=10;
 
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3c)) {
     Serial.println(F("SSD1306 allocation failed"));
@@ -235,7 +253,7 @@ void setup()
       unsigned int duration= millis()-wifiStartTime;
       if (duration>WIFI_TIMEOUT_MS)
       {
-        Serial.printf("Could not establisch Wifi Connection for %d seconds, going to bluetooth mode", duration/1000);
+        Serial.printf("Could not establisch Wifi Connection (%s) for %d seconds, going to bluetooth mode", ssid, duration/1000);
         //to to Bluetooth mode
         conn_mode=1;
         writeToFlash();
@@ -289,6 +307,8 @@ void setup()
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolumeSteps(64); // max 255
   audio.setVolume(audioVolume);
+  audioChanged=true;
+  changeTime=millis();
 
   if (conn_mode==0)
   {
@@ -366,10 +386,7 @@ void loop()
       changeTime = millis();
       audioChanged=true;
       a2dp_sink.set_volume(audioVolume*2.5); //bluetooth scaling factor
-      //void drawProgressbar(int x,int y, int width,int height, int progress)
-      // (colour == Red)? return red : return !red;
       int progress = audioVolume*2.5; //convert to %
-
       display.clearDisplay();
       drawProgressbar(0, 0, 120, 15 ,progress);
       display.setCursor(5, 21);
@@ -378,22 +395,22 @@ void loop()
       display.display();
   }
   //Keep the audio volume on display for 5 seconds
-  if (millis()-changeTime>5*1000)
+  
+  if (millis()-changeTime>5*1000 && audioChanged)
   {
+    Serial.println("Audio has changed");
     drawMainMenu();
-  }
-  //save audio after 10 seconds only, to avoid too many flash writes
-  if ((millis()-changeTime)>10*1000 && audioChanged)
-  {
-    Serial.printf("Write to flash because of audio change to %d\n", audioVolume);
-    if (conn_mode==0)//save audio only in webradio mode
+    if (audioVolume)
     {
-      writeToFlash();
-      
+      Serial.printf("Write to flash because of audio change to %d\n", audioVolume);
+      if (conn_mode==0)//save audio only in webradio mode
+      {
+        writeToFlash();
+      }
     }
     audioChanged=false;
+    
   }
-    //vTaskDelay(1);
 }
 
 // Web radio events
