@@ -37,8 +37,8 @@ Preferences prefs;
 Audio audio;
 
 //TODO: credentials via Webserver
-String ssid =     "xxx";//<-- Add your credentials here
-String password = "xxx";//<-- Add your credentials here
+String ssid =     "Frieda";//<-- Add your credentials here
+String password = "Frieda4all";//<-- Add your credentials here
 
 
 //structure for station list
@@ -69,6 +69,8 @@ bool audioChanged;
 bool isPlaying; //for Bluetooth only
 
 Ticker minuteTicker;
+Ticker shutdownTicker;
+uint8_t shutdownSeconds;
 
 void keepWiFiAlive(void * parameters) {
   for (;;) {
@@ -99,10 +101,35 @@ void keepWiFiAlive(void * parameters) {
     }
   }
 }
+void shutdownTimer()
+{
+  if (audioVolume)//interrupt Flag
+  {
+    Serial.println("Audio increased, shutdown canceled");
+    shutdownSeconds=5;
+    shutdownTicker.detach();
+  }
+  else
+  {
+    if (shutdownSeconds==0)
+      esp_deep_sleep_start();
+    shutdownSeconds--;
+    Serial.printf("Shutdown in %d seconds\n", shutdownSeconds);
+    display.clearDisplay();
+    display.setCursor(0,0);             // Start at top-left corner
+    display.setTextSize(2);
+    display.println("Shutdown");
+    display.printf("in %d sec.", shutdownSeconds);
+    display.display();
+
+  }
+}
+
 //OLED Main Menu - adjusted for 128x32 pixel display
 void drawMainMenu()
 {
   Serial.println("DrawMainMenu");
+  if (audioVolume)
   {
     display.clearDisplay();
     display.setCursor(0,0);             // Start at top-left corner
@@ -124,9 +151,13 @@ void drawMainMenu()
       display.println("Bluetooth");
       display.println("  mode");
     }
-      
-    display.display();
   }
+  else 
+  {
+    shutdownTicker.attach(1, shutdownTimer);
+  }
+    display.display();
+
 }
 //draw OLED progressbar for volume visualisation
 void drawProgressbar(int x,int y, int width,int height, int progress)
@@ -154,7 +185,8 @@ void writeToFlash()
 {
     String mode[] = {"WiFi", "Bluetooth"};
     prefs.putUShort("ConnMode", conn_mode);
-    prefs.putUShort("volume", audioVolume);
+    if (audioVolume)
+      prefs.putUShort("volume", audioVolume);
     prefs.putUShort("station", currentStation);
     Serial.printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     Serial.printf("To flash: mode: %s, volume: %d/%d, station: %s\n", mode[conn_mode], audioVolume, MAX_AUDIO_VOLUME, stationlist[currentStation].name);
@@ -174,7 +206,7 @@ void data_received_callback() {
 void minuteCheck()
 {
   int inactiveMinutes = (millis()-dataPacketReceivedTime)/60000;
-  Serial.printf("Minute check, uptime %d minutes, idle % minutes\n", (millis()/60000), inactiveMinutes);
+  Serial.printf("Minute check, uptime %d minutes, idle %d minutes\n", (millis()/60000), inactiveMinutes);
 
   if (inactiveMinutes)
   {
@@ -316,6 +348,7 @@ void setup()
       Serial.printf(" Current station: %s\n, index=%d\n", stationlist[currentStation].name, currentStation);
   }
   minuteTicker.attach_ms(60000, minuteCheck);
+  shutdownSeconds=5; //5 seconds countdown before deepsleep
 }
 
 void loop()
@@ -395,8 +428,13 @@ void loop()
       display.display();
   }
   //Keep the audio volume on display for 5 seconds
-  
-  if (millis()-changeTime>5*1000 && audioChanged)
+  int waitTime; //defines how long the audio bar should be shown. 
+  if (audioVolume)
+    waitTime=3000; //3 seconds
+  else
+    waitTime=1000;
+
+  if (millis()-changeTime>waitTime && audioChanged)
   {
     Serial.println("Audio has changed");
     drawMainMenu();
