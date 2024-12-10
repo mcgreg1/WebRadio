@@ -37,8 +37,8 @@ Preferences prefs;
 Audio audio;
 
 //TODO: credentials via Webserver
-String ssid =     "Frieda";//<-- Add your credentials here
-String password = "Frieda4all";//<-- Add your credentials here
+String ssid =     "xxx";//<-- Add your credentials here
+String password = "xxx";//<-- Add your credentials here
 
 
 //structure for station list
